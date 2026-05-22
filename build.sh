@@ -64,6 +64,18 @@ EOF
 
 codesign --force --deep --sign - "${APP_DIR}" >/dev/null 2>&1 || true
 
+echo "→ Création du DMG…"
+DMG_PATH="build/${APP_NAME}.dmg"
+rm -f "${DMG_PATH}"
+DMG_STAGE="build/dmg-stage"
+rm -rf "${DMG_STAGE}"
+mkdir -p "${DMG_STAGE}"
+cp -R "${APP_DIR}" "${DMG_STAGE}/"
+ln -s /Applications "${DMG_STAGE}/Applications"
+hdiutil create -volname "${APP_NAME}" -srcfolder "${DMG_STAGE}" -ov -format UDZO "${DMG_PATH}" >/dev/null
+rm -rf "${DMG_STAGE}"
+echo "✓ DMG créé : ${DMG_PATH}"
+
 echo "✓ Bundle créé : ${APP_DIR}"
 echo
 echo "Pour installer :"
