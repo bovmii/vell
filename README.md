@@ -95,6 +95,10 @@ Un bug, une idée, une PR ? :
 
 ## Licence
 
-MIT, voir [LICENSE](LICENSE).
+**PolyForm Noncommercial 1.0.0** (voir [LICENSE](LICENSE)).
 
-Créé avec ☕ par [@bovmii](https://github.com/bovmii).
+Vell est **100 % gratuit**. Vous pouvez l'utiliser, le modifier, et le redistribuer **gratuitement**. Vous ne pouvez **pas** le vendre, ni vendre une version dérivée. Si vous trouvez Vell en vente quelque part, c'est du vol. Signalez-le sur [Instagram @bovmii](https://instagram.com/bovmii).
+
+Copyright © 2026 @bovmii.
+
+Créé par [@bovmii](https://github.com/bovmii).

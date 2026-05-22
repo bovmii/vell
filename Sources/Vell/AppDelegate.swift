@@ -34,11 +34,25 @@ private func displayString(mods: NSEvent.ModifierFlags, char: String) -> String 
 
 // MARK: - AppDelegate
 
+// Copyright (c) 2026 Boumediene B. (@bovmii). All rights reserved.
+// Vell is free and open source under PolyForm Noncommercial 1.0.0.
+// Selling this software, or any derivative based on it, is strictly prohibited.
+// Author contact: instagram.com/bovmii — github.com/bovmii
+let kVellCopyright = "Vell © 2026 @bovmii — Free and noncommercial. Selling prohibited. instagram.com/bovmii"
+
 final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private var statusItem: NSStatusItem!
     private var hotKeyRef: EventHotKeyRef?
     private var prefsWindow: NSWindow?
+
+    // Persistent menu item refs (so we mutate in place instead of rebuilding).
+    private var menu: NSMenu!
+    private var enabledItem: NSMenuItem!
+    private var intensityLabel: NSTextField!
+    private var slider: NSSlider!
+    private var loginItem: NSMenuItem!
+    private var presetSubmenu: NSMenu!
 
     private let defaults = UserDefaults.standard
     private let intensityKey = "intensity"
@@ -88,8 +102,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     // MARK: - Lifecycle
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        NSLog("%@", kVellCopyright)
         buildStatusItem()
-        rebuildMenu()
+        buildMenu()
         applyGamma()
         registerHotKey()
 
@@ -119,10 +134,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Menu
 
-    private func rebuildMenu() {
-        let menu = NSMenu()
+    private func buildMenu() {
+        menu = NSMenu()
 
-        // Header: Vell · @bovmii
+        // Header: Vell  @bovmii (no dash)
         let header = NSMenuItem()
         let attr = NSMutableAttributedString(
             string: "Vell  ",
@@ -140,23 +155,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu.addItem(header)
         menu.addItem(.separator())
 
-        // On/off with current shortcut
-        let enabledItem = NSMenuItem(title: isEnabled ? "✓ Activé" : "Activé",
-                                      action: #selector(toggleEnabled),
-                                      keyEquivalent: hotKeyEnabled ? hotKeyChar.lowercased() : "")
-        if hotKeyEnabled {
-            enabledItem.keyEquivalentModifierMask = nsMods(from: hotKeyMods)
-        }
+        enabledItem = NSMenuItem(title: "", action: #selector(toggleEnabled), keyEquivalent: "")
         enabledItem.target = self
+        refreshEnabledItem()
         menu.addItem(enabledItem)
         menu.addItem(.separator())
 
-        // Slider
-        let intensityLabel = NSTextField(labelWithString: "Intensité : \(Int(intensity * 100)) %")
+        // Slider (kept as ivar so we don't recreate it)
+        intensityLabel = NSTextField(labelWithString: "")
         intensityLabel.font = NSFont.menuFont(ofSize: 11)
         intensityLabel.textColor = .secondaryLabelColor
-        let slider = NSSlider(value: intensity * 100, minValue: 0, maxValue: 90,
-                              target: self, action: #selector(sliderChanged(_:)))
+        slider = NSSlider(value: intensity * 100, minValue: 0, maxValue: 90,
+                          target: self, action: #selector(sliderChanged(_:)))
         slider.isContinuous = true
         let container = NSView(frame: NSRect(x: 0, y: 0, width: 220, height: 50))
         intensityLabel.frame = NSRect(x: 14, y: 28, width: 192, height: 16)
@@ -166,23 +176,20 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let sliderItem = NSMenuItem()
         sliderItem.view = container
         menu.addItem(sliderItem)
+        refreshIntensityLabel()
 
-        // Presets submenu (values come from defaults)
-        let presets = NSMenuItem(title: "Préréglages", action: nil, keyEquivalent: "")
-        let presetMenu = NSMenu()
-        let values = presetValues
+        // Preset submenu (kept as ivar so we update titles in place)
+        let presetParent = NSMenuItem(title: "Préréglages", action: nil, keyEquivalent: "")
+        presetSubmenu = NSMenu()
         for i in 0..<3 {
-            let item = NSMenuItem(
-                title: "\(presetLabels[i]) (\(Int(values[i] * 100)) %)",
-                action: #selector(applyPreset(_:)),
-                keyEquivalent: ""
-            )
+            let item = NSMenuItem(title: "", action: #selector(applyPreset(_:)), keyEquivalent: "")
             item.target = self
-            item.representedObject = values[i]
-            presetMenu.addItem(item)
+            item.tag = i
+            presetSubmenu.addItem(item)
         }
-        presets.submenu = presetMenu
-        menu.addItem(presets)
+        presetParent.submenu = presetSubmenu
+        refreshPresetSubmenu()
+        menu.addItem(presetParent)
 
         let reset = NSMenuItem(title: "Réinitialiser", action: #selector(resetIntensity), keyEquivalent: "")
         reset.target = self
@@ -190,9 +197,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         menu.addItem(.separator())
 
-        let loginTitle = isLoginItemEnabled() ? "✓ Lancer au démarrage" : "Lancer au démarrage"
-        let loginItem = NSMenuItem(title: loginTitle, action: #selector(toggleLoginItem), keyEquivalent: "")
+        loginItem = NSMenuItem(title: "", action: #selector(toggleLoginItem), keyEquivalent: "")
         loginItem.target = self
+        refreshLoginItem()
         menu.addItem(loginItem)
 
         let prefs = NSMenuItem(title: "Préférences…", action: #selector(openPreferences), keyEquivalent: ",")
@@ -212,32 +219,64 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusItem.menu = menu
     }
 
+    // MARK: - Live menu refreshers (mutate in place, never rebuild)
+
+    private func refreshEnabledItem() {
+        enabledItem.title = isEnabled ? "✓ Activé" : "Activé"
+        if hotKeyEnabled {
+            enabledItem.keyEquivalent = hotKeyChar.lowercased()
+            enabledItem.keyEquivalentModifierMask = nsMods(from: hotKeyMods)
+        } else {
+            enabledItem.keyEquivalent = ""
+            enabledItem.keyEquivalentModifierMask = []
+        }
+    }
+
+    private func refreshIntensityLabel() {
+        intensityLabel.stringValue = "Intensité : \(Int(intensity * 100)) %"
+    }
+
+    private func refreshLoginItem() {
+        loginItem.title = isLoginItemEnabled() ? "✓ Lancer au démarrage" : "Lancer au démarrage"
+    }
+
+    private func refreshPresetSubmenu() {
+        let values = presetValues
+        for (i, item) in presetSubmenu.items.enumerated() where i < 3 {
+            item.title = "\(presetLabels[i]) (\(Int(values[i] * 100)) %)"
+            item.representedObject = values[i]
+        }
+    }
+
     // MARK: - Actions
 
     @objc fileprivate func toggleEnabled() {
         isEnabled.toggle()
         applyGamma()
-        rebuildMenu()
+        refreshEnabledItem()
     }
 
     @objc private func sliderChanged(_ sender: NSSlider) {
         intensity = sender.doubleValue / 100.0
         applyGamma()
-        rebuildMenu()
+        refreshIntensityLabel()
     }
 
     @objc private func applyPreset(_ sender: NSMenuItem) {
         guard let value = sender.representedObject as? Double else { return }
         intensity = value
         if !isEnabled { isEnabled = true }
+        slider.doubleValue = value * 100
         applyGamma()
-        rebuildMenu()
+        refreshIntensityLabel()
+        refreshEnabledItem()
     }
 
     @objc private func resetIntensity() {
         intensity = defaultIntensity
+        slider.doubleValue = defaultIntensity * 100
         applyGamma()
-        rebuildMenu()
+        refreshIntensityLabel()
     }
 
     @objc private func toggleLoginItem() {
@@ -250,7 +289,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         } catch {
             NSLog("Login item toggle failed: \(error)")
         }
-        rebuildMenu()
+        refreshLoginItem()
     }
 
     @objc private func showAbout() {
@@ -263,9 +302,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         GitHub : github.com/bovmii
         Instagram : @bovmii
 
+        Vell est 100 % gratuit. Si vous payez pour cette app, vous vous êtes fait avoir.
+
         Un bug, une idée ? Écrivez-moi sur Instagram ou ouvrez une issue sur GitHub.
 
-        Open source. MIT.
+        Copyright © 2026 @bovmii.
+        Licence PolyForm Noncommercial 1.0.0. Revente interdite.
         """
         alert.addButton(withTitle: "OK")
         alert.addButton(withTitle: "Ouvrir GitHub")
@@ -342,18 +384,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         defaults.set(Int(mods), forKey: "hotKeyMods")
         defaults.set(char, forKey: "hotKeyChar")
         installHotKey()
-        rebuildMenu()
+        refreshEnabledItem()
     }
 
     fileprivate func setHotKeyEnabled(_ enabled: Bool) {
         defaults.set(enabled, forKey: "hotKeyEnabled")
         installHotKey()
-        rebuildMenu()
+        refreshEnabledItem()
     }
 
     fileprivate func updatePreset(_ index: Int, _ value: Double) {
         setPreset(index, value)
-        rebuildMenu()
+        refreshPresetSubmenu()
     }
 
     fileprivate func currentHotKeyDisplay() -> String {
@@ -383,7 +425,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         defaults.removeObject(forKey: intensityKey)
         installHotKey()
         applyGamma()
-        rebuildMenu()
+        slider.doubleValue = intensity * 100
+        refreshIntensityLabel()
+        refreshEnabledItem()
+        refreshPresetSubmenu()
     }
 }
 

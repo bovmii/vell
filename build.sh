@@ -57,7 +57,7 @@ cat > "${APP_DIR}/Contents/Info.plist" <<EOF
     <key>LSUIElement</key>
     <true/>
     <key>NSHumanReadableCopyright</key>
-    <string>MIT License. @bovmii</string>
+    <string>Copyright © 2026 @bovmii. PolyForm Noncommercial 1.0.0. Resale prohibited.</string>
 </dict>
 </plist>
 EOF
