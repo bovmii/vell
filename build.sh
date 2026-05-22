@@ -57,7 +57,7 @@ cat > "${APP_DIR}/Contents/Info.plist" <<EOF
     <key>LSUIElement</key>
     <true/>
     <key>NSHumanReadableCopyright</key>
-    <string>MIT License — @bovmii</string>
+    <string>MIT License. @bovmii</string>
 </dict>
 </plist>
 EOF

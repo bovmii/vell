@@ -122,14 +122,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private func rebuildMenu() {
         let menu = NSMenu()
 
-        // Header: Vell — @bovmii
+        // Header: Vell · @bovmii
         let header = NSMenuItem()
         let attr = NSMutableAttributedString(
-            string: "Vell ",
+            string: "Vell  ",
             attributes: [.font: NSFont.menuBarFont(ofSize: 0).withSize(13)]
         )
         attr.append(NSAttributedString(
-            string: "— @bovmii",
+            string: "@bovmii",
             attributes: [
                 .font: NSFont.menuFont(ofSize: 11),
                 .foregroundColor: NSColor.secondaryLabelColor
@@ -265,7 +265,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         Un bug, une idée ? Écrivez-moi sur Instagram ou ouvrez une issue sur GitHub.
 
-        Open source — MIT.
+        Open source. MIT.
         """
         alert.addButton(withTitle: "OK")
         alert.addButton(withTitle: "Ouvrir GitHub")
@@ -400,12 +400,12 @@ final class PreferencesWindow: NSWindow, NSWindowDelegate, NSTextFieldDelegate {
     init(appDelegate: AppDelegate) {
         self.appDelegate = appDelegate
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: 380),
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 320),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
         )
-        self.title = "Préférences — Vell"
+        self.title = "Préférences"
         self.isReleasedWhenClosed = false
         self.center()
         self.delegate = self
@@ -416,28 +416,18 @@ final class PreferencesWindow: NSWindow, NSWindowDelegate, NSTextFieldDelegate {
         let content = NSView(frame: contentView!.bounds)
         contentView = content
 
-        // Height layout (origin Y from bottom):
-        // 360 — title presets
-        // 330 / 298 / 266 — preset rows
-        // 246 — help
-        // 232 — separator
-        // 210 — title hotkey
-        // 175 — recorder + help under
-        // 145 — checkbox
-        // 115 — separator
-        // 80  — reset all button + help
-        // window height = 380
+        // Window height 320, Y from bottom.
 
         // Presets section
         let presetsTitle = NSTextField(labelWithString: "Préréglages (%)")
         presetsTitle.font = .boldSystemFont(ofSize: 13)
-        presetsTitle.frame = NSRect(x: 20, y: 340, width: 360, height: 18)
+        presetsTitle.frame = NSRect(x: 20, y: 282, width: 360, height: 18)
         content.addSubview(presetsTitle)
 
         let labels = ["Léger", "Moyen", "Fort"]
         let values = appDelegate?.currentPresetValues() ?? [0.30, 0.55, 0.80]
         for i in 0..<3 {
-            let y: CGFloat = 308 - CGFloat(i) * 32
+            let y: CGFloat = 250 - CGFloat(i) * 30
             let lbl = NSTextField(labelWithString: labels[i])
             lbl.frame = NSRect(x: 20, y: y, width: 70, height: 22)
             content.addSubview(lbl)
@@ -445,9 +435,6 @@ final class PreferencesWindow: NSWindow, NSWindowDelegate, NSTextFieldDelegate {
             let field = NSTextField(frame: NSRect(x: 100, y: y, width: 70, height: 22))
             field.stringValue = String(Int(values[i] * 100))
             field.tag = i
-            field.target = self
-            field.action = #selector(presetChanged(_:))
-            field.cell?.sendsActionOnEndEditing = true   // fire on tab/click-away/window-close
             field.delegate = self
             fields.append(field)
             content.addSubview(field)
@@ -457,60 +444,56 @@ final class PreferencesWindow: NSWindow, NSWindowDelegate, NSTextFieldDelegate {
             content.addSubview(pct)
         }
 
-        let presetHelp = NSTextField(labelWithString: "Valeurs entre 0 et 90. Appuyez sur Entrée pour valider.")
-        presetHelp.font = NSFont.systemFont(ofSize: 11)
-        presetHelp.textColor = .secondaryLabelColor
-        presetHelp.frame = NSRect(x: 20, y: 212, width: 360, height: 16)
-        content.addSubview(presetHelp)
-
         // Separator
-        let sep1 = NSBox(frame: NSRect(x: 20, y: 200, width: 360, height: 1))
+        let sep1 = NSBox(frame: NSRect(x: 20, y: 152, width: 360, height: 1))
         sep1.boxType = .separator
         content.addSubview(sep1)
 
         // Hotkey section
-        let hkTitle = NSTextField(labelWithString: "Raccourci global (activer/désactiver)")
+        let hkTitle = NSTextField(labelWithString: "Raccourci global")
         hkTitle.font = .boldSystemFont(ofSize: 13)
-        hkTitle.frame = NSRect(x: 20, y: 172, width: 360, height: 18)
+        hkTitle.frame = NSRect(x: 20, y: 124, width: 360, height: 18)
         content.addSubview(hkTitle)
 
-        recorderButton = NSButton(frame: NSRect(x: 20, y: 137, width: 200, height: 28))
+        recorderButton = NSButton(frame: NSRect(x: 20, y: 90, width: 160, height: 28))
         recorderButton.bezelStyle = .rounded
         recorderButton.title = appDelegate?.currentHotKeyDisplay() ?? "⌥⌘B"
         recorderButton.target = self
         recorderButton.action = #selector(startRecording)
         content.addSubview(recorderButton)
 
-        let hkHelp = NSTextField(labelWithString: "Cliquer puis appuyer sur la combinaison (modificateur + touche).")
-        hkHelp.font = NSFont.systemFont(ofSize: 11)
-        hkHelp.textColor = .secondaryLabelColor
-        hkHelp.frame = NSRect(x: 20, y: 114, width: 360, height: 16)
-        content.addSubview(hkHelp)
-
-        enabledCheckbox = NSButton(checkboxWithTitle: "Activer le raccourci",
+        enabledCheckbox = NSButton(checkboxWithTitle: "Activer",
                                     target: self,
                                     action: #selector(toggleHotkeyEnabled(_:)))
-        enabledCheckbox.frame = NSRect(x: 20, y: 84, width: 200, height: 22)
+        enabledCheckbox.frame = NSRect(x: 195, y: 93, width: 100, height: 22)
         enabledCheckbox.state = (appDelegate?.currentHotKeyDisplay() == "Désactivé") ? .off : .on
         content.addSubview(enabledCheckbox)
 
-        // Bottom separator + reset
-        let sep2 = NSBox(frame: NSRect(x: 20, y: 60, width: 360, height: 1))
+        let hkHelp = NSTextField(labelWithString: "Cliquez puis appuyez sur la combinaison souhaitée.")
+        hkHelp.font = NSFont.systemFont(ofSize: 11)
+        hkHelp.textColor = .secondaryLabelColor
+        hkHelp.frame = NSRect(x: 20, y: 66, width: 360, height: 16)
+        content.addSubview(hkHelp)
+
+        // Bottom separator + actions
+        let sep2 = NSBox(frame: NSRect(x: 20, y: 50, width: 360, height: 1))
         sep2.boxType = .separator
         content.addSubview(sep2)
 
-        let resetButton = NSButton(frame: NSRect(x: 20, y: 20, width: 220, height: 28))
+        let resetButton = NSButton(frame: NSRect(x: 20, y: 12, width: 170, height: 28))
         resetButton.bezelStyle = .rounded
         resetButton.title = "Tout réinitialiser"
         resetButton.target = self
         resetButton.action = #selector(resetAllPressed)
         content.addSubview(resetButton)
 
-        let resetHelp = NSTextField(labelWithString: "Restaure les valeurs par défaut.")
-        resetHelp.font = NSFont.systemFont(ofSize: 11)
-        resetHelp.textColor = .secondaryLabelColor
-        resetHelp.frame = NSRect(x: 250, y: 26, width: 140, height: 16)
-        content.addSubview(resetHelp)
+        let applyButton = NSButton(frame: NSRect(x: 290, y: 12, width: 90, height: 28))
+        applyButton.bezelStyle = .rounded
+        applyButton.title = "Appliquer"
+        applyButton.keyEquivalent = "\r"   // Enter activates Apply
+        applyButton.target = self
+        applyButton.action = #selector(applyPressed)
+        content.addSubview(applyButton)
     }
 
     // Re-sync visible fields with current defaults (called when window is shown).
@@ -547,13 +530,17 @@ final class PreferencesWindow: NSWindow, NSWindowDelegate, NSTextFieldDelegate {
         }
     }
 
-    // MARK: - Preset editing
+    // MARK: - Apply
 
-    @objc private func presetChanged(_ sender: NSTextField) {
-        let raw = Double(sender.stringValue) ?? 0
-        let clamped = max(0, min(90, raw))
-        sender.stringValue = String(Int(clamped))
-        appDelegate?.updatePreset(sender.tag, clamped / 100.0)
+    @objc private func applyPressed() {
+        // Force any in-progress edit to commit before reading values.
+        self.makeFirstResponder(nil)
+        for (i, f) in fields.enumerated() {
+            let raw = Double(f.stringValue) ?? 0
+            let clamped = max(0, min(90, raw))
+            f.stringValue = String(Int(clamped))
+            appDelegate?.updatePreset(i, clamped / 100.0)
+        }
     }
 
     // MARK: - Hotkey recording

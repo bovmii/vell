@@ -1,6 +1,6 @@
 # Vell
 
-Une petite app menu-bar pour macOS qui **réduit l'intensité du point blanc** de votre écran — exactement comme l'option *Accessibilité → Affichage → Réduire le point blanc* sur iPhone, mais pour le Mac.
+Une petite app menu-bar pour macOS qui **réduit l'intensité du point blanc** de votre écran, exactement comme l'option *Accessibilité → Affichage → Réduire le point blanc* sur iPhone, mais pour le Mac.
 
 Utile pour la lecture nocturne, le confort sur écrans OLED, ou n'importe qui qui trouve les blancs purs trop agressifs même luminosité au minimum.
 
@@ -70,7 +70,7 @@ Le script :
 
 ## Comment ça marche
 
-L'app appelle `CGSetDisplayTransferByFormula` sur chaque écran branché pour plafonner la valeur RGB maximale. Plafonner le max à, disons, 0.7 fait qu'un pixel "blanc pur" est rendu à 70 % de sa luminance normale — c'est exactement ce que fait *Reduce White Point* sur iOS.
+L'app appelle `CGSetDisplayTransferByFormula` sur chaque écran branché pour plafonner la valeur RGB maximale. Plafonner le max à, disons, 0.7 fait qu'un pixel "blanc pur" est rendu à 70 % de sa luminance normale, c'est exactement ce que fait *Reduce White Point* sur iOS.
 
 Quand vous quittez ou désactivez, `CGDisplayRestoreColorSyncSettings` remet l'écran dans son état normal.
 
@@ -95,6 +95,6 @@ Un bug, une idée, une PR ? :
 
 ## Licence
 
-MIT — voir [LICENSE](LICENSE).
+MIT, voir [LICENSE](LICENSE).
 
 Créé avec ☕ par [@bovmii](https://github.com/bovmii).
