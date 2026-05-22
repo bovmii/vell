@@ -1,0 +1,54 @@
+name: Build Vell for Windows
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'windows/**'
+      - '.github/workflows/build-windows.yml'
+  workflow_dispatch:
+  release:
+    types: [published]
+
+jobs:
+  build:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: windows
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Generate icone.ico from icone.png
+        shell: pwsh
+        run: |
+          magick icone.png -define icon:auto-resize=256,128,64,48,32,16 icone.ico
+
+      - name: Publish (single-file, self-contained, win-x64)
+        run: |
+          dotnet publish Vell.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true -o publish
+
+      - name: Rename and stage artifact
+        shell: pwsh
+        run: |
+          Copy-Item publish/Vell.exe ../Vell.exe
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Vell-Windows
+          path: Vell.exe
+
+      - name: Attach to release
+        if: github.event_name == 'release'
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ../Vell.exe
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

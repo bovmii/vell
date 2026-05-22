@@ -1,8 +1,15 @@
 # Vell
 
-Une petite app menu-bar pour macOS qui **réduit l'intensité du point blanc** de votre écran, exactement comme l'option *Accessibilité → Affichage → Réduire le point blanc* sur iPhone, mais pour le Mac.
+Une petite app **menu-bar (macOS)** ou **system tray (Windows)** qui **réduit l'intensité du point blanc** de votre écran, exactement comme l'option *Accessibilité → Affichage → Réduire le point blanc* sur iPhone, mais pour ordinateur.
 
 Utile pour la lecture nocturne, le confort sur écrans OLED, ou n'importe qui qui trouve les blancs purs trop agressifs même luminosité au minimum.
+
+## Plateformes
+
+| Plateforme | Stack | Statut | Détails |
+|---|---|---|---|
+| 🍎 **macOS 13+** | Swift / Cocoa | ✅ Stable | Voir la suite de ce README |
+| 🪟 **Windows 10/11** | C# .NET 8 / WinForms | ✅ Stable | Voir [`windows/README.md`](windows/README.md) |
 
 ![menu](docs/screenshot.png)
 
