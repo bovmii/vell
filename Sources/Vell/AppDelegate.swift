@@ -369,14 +369,27 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         if prefsWindow == nil {
             prefsWindow = PreferencesWindow(appDelegate: self)
         }
+        (prefsWindow as? PreferencesWindow)?.refresh()
         NSApp.activate(ignoringOtherApps: true)
         prefsWindow?.makeKeyAndOrderFront(nil)
+    }
+
+    fileprivate func resetAll() {
+        for i in 0..<3 { defaults.removeObject(forKey: "preset\(i)") }
+        defaults.removeObject(forKey: "hotKeyCode")
+        defaults.removeObject(forKey: "hotKeyMods")
+        defaults.removeObject(forKey: "hotKeyChar")
+        defaults.removeObject(forKey: "hotKeyEnabled")
+        defaults.removeObject(forKey: intensityKey)
+        installHotKey()
+        applyGamma()
+        rebuildMenu()
     }
 }
 
 // MARK: - Preferences window
 
-final class PreferencesWindow: NSWindow {
+final class PreferencesWindow: NSWindow, NSWindowDelegate, NSTextFieldDelegate {
 
     private weak var appDelegate: AppDelegate?
     private var fields: [NSTextField] = []
@@ -387,7 +400,7 @@ final class PreferencesWindow: NSWindow {
     init(appDelegate: AppDelegate) {
         self.appDelegate = appDelegate
         super.init(
-            contentRect: NSRect(x: 0, y: 0, width: 400, height: 320),
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 380),
             styleMask: [.titled, .closable],
             backing: .buffered,
             defer: false
@@ -395,6 +408,7 @@ final class PreferencesWindow: NSWindow {
         self.title = "Préférences — Vell"
         self.isReleasedWhenClosed = false
         self.center()
+        self.delegate = self
         buildUI()
     }
 
@@ -402,69 +416,135 @@ final class PreferencesWindow: NSWindow {
         let content = NSView(frame: contentView!.bounds)
         contentView = content
 
+        // Height layout (origin Y from bottom):
+        // 360 — title presets
+        // 330 / 298 / 266 — preset rows
+        // 246 — help
+        // 232 — separator
+        // 210 — title hotkey
+        // 175 — recorder + help under
+        // 145 — checkbox
+        // 115 — separator
+        // 80  — reset all button + help
+        // window height = 380
+
         // Presets section
         let presetsTitle = NSTextField(labelWithString: "Préréglages (%)")
         presetsTitle.font = .boldSystemFont(ofSize: 13)
-        presetsTitle.frame = NSRect(x: 20, y: 270, width: 360, height: 18)
+        presetsTitle.frame = NSRect(x: 20, y: 340, width: 360, height: 18)
         content.addSubview(presetsTitle)
 
         let labels = ["Léger", "Moyen", "Fort"]
         let values = appDelegate?.currentPresetValues() ?? [0.30, 0.55, 0.80]
         for i in 0..<3 {
+            let y: CGFloat = 308 - CGFloat(i) * 32
             let lbl = NSTextField(labelWithString: labels[i])
-            lbl.frame = NSRect(x: 20, y: 240 - CGFloat(i) * 32, width: 70, height: 22)
+            lbl.frame = NSRect(x: 20, y: y, width: 70, height: 22)
             content.addSubview(lbl)
 
-            let field = NSTextField(frame: NSRect(x: 100, y: 240 - CGFloat(i) * 32, width: 70, height: 22))
+            let field = NSTextField(frame: NSRect(x: 100, y: y, width: 70, height: 22))
             field.stringValue = String(Int(values[i] * 100))
             field.tag = i
             field.target = self
             field.action = #selector(presetChanged(_:))
-            field.delegate = nil
+            field.cell?.sendsActionOnEndEditing = true   // fire on tab/click-away/window-close
+            field.delegate = self
             fields.append(field)
             content.addSubview(field)
 
             let pct = NSTextField(labelWithString: "%")
-            pct.frame = NSRect(x: 175, y: 240 - CGFloat(i) * 32, width: 20, height: 22)
+            pct.frame = NSRect(x: 175, y: y, width: 20, height: 22)
             content.addSubview(pct)
         }
 
-        let presetHelp = NSTextField(labelWithString: "Valeurs entre 0 et 90.")
+        let presetHelp = NSTextField(labelWithString: "Valeurs entre 0 et 90. Appuyez sur Entrée pour valider.")
         presetHelp.font = NSFont.systemFont(ofSize: 11)
         presetHelp.textColor = .secondaryLabelColor
-        presetHelp.frame = NSRect(x: 20, y: 142, width: 360, height: 16)
+        presetHelp.frame = NSRect(x: 20, y: 212, width: 360, height: 16)
         content.addSubview(presetHelp)
 
         // Separator
-        let sep = NSBox(frame: NSRect(x: 20, y: 130, width: 360, height: 1))
-        sep.boxType = .separator
-        content.addSubview(sep)
+        let sep1 = NSBox(frame: NSRect(x: 20, y: 200, width: 360, height: 1))
+        sep1.boxType = .separator
+        content.addSubview(sep1)
 
         // Hotkey section
         let hkTitle = NSTextField(labelWithString: "Raccourci global (activer/désactiver)")
         hkTitle.font = .boldSystemFont(ofSize: 13)
-        hkTitle.frame = NSRect(x: 20, y: 100, width: 360, height: 18)
+        hkTitle.frame = NSRect(x: 20, y: 172, width: 360, height: 18)
         content.addSubview(hkTitle)
 
-        recorderButton = NSButton(frame: NSRect(x: 20, y: 65, width: 200, height: 28))
+        recorderButton = NSButton(frame: NSRect(x: 20, y: 137, width: 200, height: 28))
         recorderButton.bezelStyle = .rounded
         recorderButton.title = appDelegate?.currentHotKeyDisplay() ?? "⌥⌘B"
         recorderButton.target = self
         recorderButton.action = #selector(startRecording)
         content.addSubview(recorderButton)
 
-        let hkHelp = NSTextField(labelWithString: "Cliquer puis appuyer sur la combinaison souhaitée.")
+        let hkHelp = NSTextField(labelWithString: "Cliquer puis appuyer sur la combinaison (modificateur + touche).")
         hkHelp.font = NSFont.systemFont(ofSize: 11)
         hkHelp.textColor = .secondaryLabelColor
-        hkHelp.frame = NSRect(x: 20, y: 42, width: 360, height: 16)
+        hkHelp.frame = NSRect(x: 20, y: 114, width: 360, height: 16)
         content.addSubview(hkHelp)
 
         enabledCheckbox = NSButton(checkboxWithTitle: "Activer le raccourci",
                                     target: self,
                                     action: #selector(toggleHotkeyEnabled(_:)))
-        enabledCheckbox.frame = NSRect(x: 20, y: 12, width: 200, height: 22)
+        enabledCheckbox.frame = NSRect(x: 20, y: 84, width: 200, height: 22)
         enabledCheckbox.state = (appDelegate?.currentHotKeyDisplay() == "Désactivé") ? .off : .on
         content.addSubview(enabledCheckbox)
+
+        // Bottom separator + reset
+        let sep2 = NSBox(frame: NSRect(x: 20, y: 60, width: 360, height: 1))
+        sep2.boxType = .separator
+        content.addSubview(sep2)
+
+        let resetButton = NSButton(frame: NSRect(x: 20, y: 20, width: 220, height: 28))
+        resetButton.bezelStyle = .rounded
+        resetButton.title = "Tout réinitialiser"
+        resetButton.target = self
+        resetButton.action = #selector(resetAllPressed)
+        content.addSubview(resetButton)
+
+        let resetHelp = NSTextField(labelWithString: "Restaure les valeurs par défaut.")
+        resetHelp.font = NSFont.systemFont(ofSize: 11)
+        resetHelp.textColor = .secondaryLabelColor
+        resetHelp.frame = NSRect(x: 250, y: 26, width: 140, height: 16)
+        content.addSubview(resetHelp)
+    }
+
+    // Re-sync visible fields with current defaults (called when window is shown).
+    func refresh() {
+        let values = appDelegate?.currentPresetValues() ?? [0.30, 0.55, 0.80]
+        for (i, f) in fields.enumerated() where i < values.count {
+            f.stringValue = String(Int(values[i] * 100))
+        }
+        recorderButton?.title = appDelegate?.currentHotKeyDisplay() ?? "⌥⌘B"
+        recorderButton?.isEnabled = (appDelegate?.currentHotKeyDisplay() != "Désactivé")
+        enabledCheckbox?.state = (appDelegate?.currentHotKeyDisplay() == "Désactivé") ? .off : .on
+    }
+
+    @objc private func resetAllPressed() {
+        let alert = NSAlert()
+        alert.messageText = "Réinitialiser tous les réglages ?"
+        alert.informativeText = "Les préréglages, le raccourci et l'intensité seront remis aux valeurs par défaut."
+        alert.addButton(withTitle: "Réinitialiser")
+        alert.addButton(withTitle: "Annuler")
+        if alert.runModal() == .alertFirstButtonReturn {
+            appDelegate?.resetAll()
+            refresh()
+        }
+    }
+
+    // Force end-editing when window closes so the field's action fires.
+    func windowWillClose(_ notification: Notification) {
+        self.makeFirstResponder(nil)
+        if let m = keyMonitor {
+            NSEvent.removeMonitor(m)
+            keyMonitor = nil
+            recorderButton.title = appDelegate?.currentHotKeyDisplay() ?? "⌥⌘B"
+            recorderButton.isEnabled = true
+        }
     }
 
     // MARK: - Preset editing
@@ -479,8 +559,20 @@ final class PreferencesWindow: NSWindow {
     // MARK: - Hotkey recording
 
     @objc private func startRecording() {
+        // Commit any in-progress text editing so first responder is clean.
+        self.makeFirstResponder(nil)
+        // Make sure window + app are active so local key monitor receives events.
+        NSApp.activate(ignoringOtherApps: true)
+        self.makeKeyAndOrderFront(nil)
+
         recorderButton.title = "Tapez la combinaison…"
         recorderButton.isEnabled = false
+
+        // Remove any previous monitor first.
+        if let m = keyMonitor {
+            NSEvent.removeMonitor(m)
+            keyMonitor = nil
+        }
         keyMonitor = NSEvent.addLocalMonitorForEvents(matching: .keyDown) { [weak self] event in
             self?.handleKeyEvent(event)
             return nil
