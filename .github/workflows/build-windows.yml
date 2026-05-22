@@ -30,9 +30,16 @@ jobs:
         run: |
           magick icone.png -define icon:auto-resize=256,128,64,48,32,16 icone.ico
 
-      - name: Publish (single-file, self-contained, win-x64)
+      - name: Publish (single-file, self-contained, win-x64, compressed)
         run: |
-          dotnet publish Vell.csproj -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true /p:IncludeNativeLibrariesForSelfExtract=true -o publish
+          dotnet publish Vell.csproj -c Release -r win-x64 `
+            --self-contained true `
+            /p:PublishSingleFile=true `
+            /p:IncludeNativeLibrariesForSelfExtract=true `
+            /p:EnableCompressionInSingleFile=true `
+            /p:DebugType=embedded `
+            /p:DebugSymbols=false `
+            -o publish
 
       - name: Rename and stage artifact
         shell: pwsh
