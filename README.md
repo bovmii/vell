@@ -38,12 +38,34 @@ cp -R "build/Vell.app" /Applications/
 open "/Applications/Vell.app"
 ```
 
-Au **premier lancement**, macOS peut afficher *« Vell ne peut pas être ouvert car l'identité du développeur ne peut pas être confirmée »* (parce que l'app est signée en ad-hoc, pas avec un Developer ID Apple). Solution :
+## Premier lancement : débloquer Gatekeeper
 
-- **Clic droit** sur `Vell.app` dans `/Applications` → **Ouvrir** → **Ouvrir** dans la boîte de dialogue.
-- Ou : *Réglages Système → Confidentialité et sécurité → "Ouvrir quand même"*.
+Vell n'est pas signée avec un Developer ID Apple (99 €/an), donc macOS affiche au premier lancement :
 
-Une fois ouvert une fois, ça se lance normalement par la suite.
+> *« Apple n'a pas pu confirmer que "Vell" ne contenait pas de logiciel malveillant. »*
+
+Pas de panique, l'app est saine. Voici comment l'autoriser :
+
+### Méthode 1 : Réglages Système (recommandée)
+
+1. Sur la boîte de dialogue, cliquer **Terminé** (PAS « Placer dans la corbeille »).
+2. Ouvrir **Réglages Système → Confidentialité et sécurité**.
+3. **Défiler jusqu'en bas** de la page, dans la section *Sécurité*.
+4. Un message indique : *« "Vell" a été bloqué car il ne provient pas d'un développeur identifié »*.
+5. Cliquer **Ouvrir quand même**.
+6. Authentifier avec Touch ID ou mot de passe.
+7. Cliquer **Ouvrir** dans la dernière boîte de dialogue.
+
+L'app démarre et tu ne reverras plus jamais cet avertissement.
+
+### Méthode 2 : Terminal (la plus rapide)
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Vell.app
+open /Applications/Vell.app
+```
+
+Une seule commande retire le drapeau de quarantaine et Gatekeeper ne s'en mêle plus.
 
 ## Utilisation
 
