@@ -44,6 +44,7 @@ public sealed class TrayContext : ApplicationContext
     private readonly ToolStripMenuItem _loginItem;
     private readonly HotKeyWindow _hotKeyWindow;
     private PreferencesForm? _prefsForm;
+    private MainWindow? _mainWindow;
 
     public AppSettings Settings { get; private set; }
 
@@ -55,6 +56,13 @@ public sealed class TrayContext : ApplicationContext
 
         var header = new ToolStripMenuItem("Vell  @bovmii") { Enabled = false };
         _menu.Items.Add(header);
+        _menu.Items.Add(new ToolStripSeparator());
+
+        var showWindow = new ToolStripMenuItem("Afficher la fenêtre", null, (_, _) => OpenMainWindow())
+        {
+            Font = new Font(SystemFonts.MenuFont!, FontStyle.Bold)
+        };
+        _menu.Items.Add(showWindow);
         _menu.Items.Add(new ToolStripSeparator());
 
         _enabledItem = new ToolStripMenuItem("Activé", null, (_, _) => ToggleEnabled());
@@ -81,6 +89,9 @@ public sealed class TrayContext : ApplicationContext
         var prefs = new ToolStripMenuItem("Préférences…", null, (_, _) => OpenPreferences());
         _menu.Items.Add(prefs);
 
+        var shortcut = new ToolStripMenuItem("Créer un raccourci sur le bureau", null, (_, _) => CreateDesktopShortcut());
+        _menu.Items.Add(shortcut);
+
         _menu.Items.Add(new ToolStripSeparator());
 
         var about = new ToolStripMenuItem("À propos…", null, (_, _) => ShowAbout());
@@ -97,11 +108,101 @@ public sealed class TrayContext : ApplicationContext
             ContextMenuStrip = _menu
         };
 
+        // Clic gauche → ouvre le menu (comme sur Mac).
+        _tray.MouseUp += (_, e) =>
+        {
+            if (e.Button == MouseButtons.Left)
+            {
+                var m = typeof(NotifyIcon).GetMethod("ShowContextMenu",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic);
+                m?.Invoke(_tray, null);
+            }
+        };
+
+        // Double-clic → ouvre la fenêtre principale.
+        _tray.DoubleClick += (_, _) => OpenMainWindow();
+
         _hotKeyWindow = new HotKeyWindow(ToggleEnabled);
         InstallHotKey();
 
         RefreshMenu();
         ApplyGamma();
+    }
+
+    // ------------------------------------------------------------------
+    //  Main window
+    // ------------------------------------------------------------------
+
+    public void OpenMainWindow()
+    {
+        if (_mainWindow == null || _mainWindow.IsDisposed)
+            _mainWindow = new MainWindow(this);
+        if (!_mainWindow.Visible) _mainWindow.Show();
+        if (_mainWindow.WindowState == FormWindowState.Minimized)
+            _mainWindow.WindowState = FormWindowState.Normal;
+        _mainWindow.Activate();
+    }
+
+    private void RefreshMainWindow()
+    {
+        if (_mainWindow != null && !_mainWindow.IsDisposed && _mainWindow.Visible)
+            _mainWindow.Refresh();
+    }
+
+    // External callbacks (used by MainWindow and PreferencesForm).
+    public void ApplyPresetExternal(int index) => ApplyPreset(index);
+    public void ResetIntensityExternal() => ResetIntensity();
+    public void OpenPreferencesExternal() => OpenPreferences();
+    public void ShowAboutExternal() => ShowAbout();
+
+    public void SetIntensity(double value)
+    {
+        if (value < 0) value = 0;
+        if (value > 0.9) value = 0.9;
+        Settings.Intensity = value;
+        if (!Settings.Enabled) Settings.Enabled = true;
+        Settings.Save();
+        ApplyGamma();
+        RefreshMenu();
+        RefreshMainWindow();
+    }
+
+    // ------------------------------------------------------------------
+    //  Desktop shortcut
+    // ------------------------------------------------------------------
+
+    private void CreateDesktopShortcut()
+    {
+        try
+        {
+            var desktop = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
+            var shortcutPath = Path.Combine(desktop, "Vell.lnk");
+            var exePath = Process.GetCurrentProcess().MainModule?.FileName;
+            if (string.IsNullOrEmpty(exePath)) return;
+
+            Type? wshType = Type.GetTypeFromProgID("WScript.Shell");
+            if (wshType == null)
+            {
+                MessageBox.Show("Impossible de créer le raccourci.", "Vell",
+                    MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                return;
+            }
+            dynamic shell = Activator.CreateInstance(wshType)!;
+            dynamic sc = shell.CreateShortcut(shortcutPath);
+            sc.TargetPath = exePath;
+            sc.WorkingDirectory = Path.GetDirectoryName(exePath);
+            sc.IconLocation = exePath + ",0";
+            sc.Description = "Vell – réduction du point blanc";
+            sc.Save();
+
+            MessageBox.Show("Raccourci créé sur le bureau.", "Vell",
+                MessageBoxButtons.OK, MessageBoxIcon.Information);
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show("Échec de la création du raccourci :\n" + ex.Message, "Vell",
+                MessageBoxButtons.OK, MessageBoxIcon.Error);
+        }
     }
 
     // ------------------------------------------------------------------
@@ -143,6 +244,7 @@ public sealed class TrayContext : ApplicationContext
         Settings.Save();
         ApplyGamma();
         RefreshMenu();
+        RefreshMainWindow();
     }
 
     private void ApplyPreset(int index)
@@ -152,6 +254,7 @@ public sealed class TrayContext : ApplicationContext
         Settings.Save();
         ApplyGamma();
         RefreshMenu();
+        RefreshMainWindow();
     }
 
     private void ResetIntensity()
@@ -160,6 +263,7 @@ public sealed class TrayContext : ApplicationContext
         Settings.Save();
         ApplyGamma();
         RefreshMenu();
+        RefreshMainWindow();
     }
 
     private void PromptCustomIntensity()
@@ -187,6 +291,7 @@ public sealed class TrayContext : ApplicationContext
             Settings.Save();
             ApplyGamma();
             RefreshMenu();
+            RefreshMainWindow();
         }
     }
 
@@ -210,6 +315,7 @@ public sealed class TrayContext : ApplicationContext
         InstallHotKey();
         ApplyGamma();
         RefreshMenu();
+        RefreshMainWindow();
     }
 
     private void ShowAbout()
@@ -328,6 +434,7 @@ public sealed class TrayContext : ApplicationContext
         InstallHotKey();
         ApplyGamma();
         RefreshMenu();
+        RefreshMainWindow();
     }
 }
 
